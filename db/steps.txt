@@ -1,0 +1,2 @@
+1.download azia
+2.replace templates 
