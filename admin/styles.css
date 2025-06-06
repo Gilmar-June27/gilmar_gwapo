@@ -1,0 +1,169 @@
+
+/* Upload Button */
+.upload-container {
+    text-align: left;
+    margin-bottom: 20px;
+    
+}
+
+.upload-btn {
+    background: #36d1dc;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    border: none;
+}
+
+.upload-btn:hover {
+    background: #007aff;
+    transform: scale(1.05);
+}
+
+/* Modals */
+.modals {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    justify-content: center;
+    align-items: center;
+}
+
+.modals-content {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    width: 320px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+/* Close Modals Button */
+.close-modals {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 22px;
+    cursor: pointer;
+    color: white;
+    background: red;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.close-modals:hover {
+    background: darkred;
+    transform: rotate(90deg) scale(1.1);
+}
+
+/* Choose File Button */
+.choose-file-btn {
+    background: #ff758c;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: 0.3s;
+    border: none;
+}
+
+.choose-file-btn:hover {
+    background: #ff4757;
+    transform: scale(1.05);
+}
+
+/* Hide Default File Input */
+input[type="file"] {
+    display: none;
+}
+
+/* Selected File Name */
+#selected-file-name {
+    font-size: 14px;
+    color: #555;
+    margin-top: 5px;
+}
+
+/* Input Fields */
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 6px;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid #ccc;
+}
+
+/* Uploaded Photos */
+#photo-documentation {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.documented-photo {
+    background: white;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 90%;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.documented-photo img {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    border-radius: 8px;
+}
+
+/* Review Section */
+.review-section {
+    margin-top: 10px;
+    text-align: left;
+}
+
+.review-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    margin-top: 5px;
+}
+
+.review-btn {
+    margin-top: 5px;
+    background: #28a745;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+    transition: 0.3s;
+}
+
+.review-btn:hover {
+    background: #218838;
+}

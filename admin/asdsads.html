@@ -1,0 +1,20 @@
+<div class="receipt-row">
+    <div class="label">Junk Type:</div>
+    <div class="value"><?= htmlspecialchars($data['junk_type']) ?></div>
+</div>
+
+<div class="receipt-row">
+    <div class="label">Weight (KL):</div>
+    <div class="value"><?= htmlspecialchars($data['kl']) ?></div>
+</div>
+
+<div class="receipt-row">
+    <div class="label">Paid Amount:</div>
+    <div class="value">₱<?= htmlspecialchars($data['paid']) ?></div>
+</div>
+
+
+// Fetch from pickup_requests table only
+$query = "SELECT * FROM pickup_requests WHERE id = '$id' AND admin_id = '$admin_id'";
+$result = mysqli_query($conn, $query);
+$data = mysqli_fetch_assoc($result);
