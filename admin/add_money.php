@@ -29,7 +29,7 @@ if (isset($_POST['add'])) {
 // Delete Capital Money
 if (isset($_POST['delete'])) {
     $delete_id = mysqli_real_escape_string($conn, $_POST['delete_id']);
-    $delete_query = "DELETE FROM total_money WHERE id = '$delete_id' ";
+    $delete_query = "DELETE FROM total_money WHERE admin_id = '$admin_id' ";
 
     if (mysqli_query($conn, $delete_query)) {
         $_SESSION['message'] = "Capital money entry deleted.";
