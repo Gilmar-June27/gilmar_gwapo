@@ -361,8 +361,18 @@ if (isset($_POST['add_documentation'])) {
 
 
 <!-- Generate Documentation Button -->
-<button type="button" class="btn btn-secondary "  data-bs-toggle="modal" data-bs-target="#completeModal"
+<!-- <button type="button" class="btn btn-secondary "  data-bs-toggle="modal" data-bs-target="#completeModal"
 data-customer-id="<?= $row['customer_id'] ?>">
+  Generate Documentation
+</button> -->
+
+<button 
+  type="button" 
+  class="btn btn-secondary"
+  data-bs-toggle="modal" 
+  data-bs-target="#completeModal"
+  data-customer-id="<?= $row['customer_id'] ?>"
+  <?= ($row['status'] !== 'Completed') ? 'disabled title="Complete the request first."' : '' ?>>
   Generate Documentation
 </button>
 

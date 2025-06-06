@@ -361,10 +361,22 @@ if (isset($_POST['add_documentation'])) {
 
 
 <!-- Generate Documentation Button -->
-<button type="button" class="btn btn-secondary "  data-bs-toggle="modal" data-bs-target="#completeModal"
+<!-- <button type="button" class="btn btn-secondary "  data-bs-toggle="modal" data-bs-target="#completeModal"
 data-customer-id="<?= $row['customer_id'] ?>">
   Generate Documentation
+</button> -->
+
+<button 
+  type="button" 
+  class="btn btn-secondary"
+  data-bs-toggle="modal" 
+  data-bs-target="#completeModal"
+  data-customer-id="<?= $row['customer_id'] ?>"
+  <?= ($row['status'] !== 'Completed') ? 'disabled title="Complete the request first."' : '' ?>>
+  Generate Documentation
 </button>
+
+
 
 <!-- Modal -->
 
@@ -454,6 +466,14 @@ data-customer-id="<?= $row['customer_id'] ?>">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
 
 <script>
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+  new bootstrap.Tooltip(tooltipTriggerEl);
+});
+
+
+
+
 document.addEventListener('DOMContentLoaded', function () {
   const form = document.getElementById('completeForm');
   const triggerButton = document.querySelectorAll('.c');
