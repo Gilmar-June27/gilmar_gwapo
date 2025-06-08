@@ -79,9 +79,8 @@ if (isset($_GET['delete'])) {
 if (isset($_POST['add_paid_kl'])) {
     $request_id = intval($_POST['request_id']);
     $collector_id = intval($_POST['collector_id']);
-    $admin_id = $_SESSION['admin_id'];
 
-    $paid = mysqli_real_escape_string($conn, $_POST['paid']);
+    $paid = floatval($_POST['paid']);
     $kl = mysqli_real_escape_string($conn, $_POST['kl']);
     $junk_type = mysqli_real_escape_string($conn, $_POST['junk_type']);
     $description = mysqli_real_escape_string($conn, $_POST['description'] ?? '');
@@ -90,6 +89,168 @@ if (isset($_POST['add_paid_kl'])) {
     $contact_number = mysqli_real_escape_string($conn, $_POST['contact_number']);
     $user_address = mysqli_real_escape_string($conn, $_POST['user_address']);
 
+    // Get latest capital money for this admin
+    $money_query = "SELECT capital_money FROM total_money WHERE admin_id = '$admin_id' ORDER BY created_at DESC LIMIT 1";
+    $money_result = mysqli_query($conn, $money_query);
+    $capital = 0;
+
+    if ($money_result && mysqli_num_rows($money_result) > 0) {
+        $capital_row = mysqli_fetch_assoc($money_result);
+        $capital = floatval($capital_row['capital_money']);
+    }
+
+    // Get total deductions
+    $deduct_query = "SELECT SUM(deduction_of_capital_money) AS total_deduction FROM total_money WHERE admin_id = '$admin_id'";
+    $deduct_result = mysqli_query($conn, $deduct_query);
+    $deduct_row = mysqli_fetch_assoc($deduct_result);
+    $total_deduction = floatval($deduct_row['total_deduction'] ?? 0);
+
+    // Calculate remaining balance
+    $remaining = $capital - $total_deduction;
+    if ($remaining < 0) $remaining = 0;
+
+    // Block if no remaining funds
+    if ($remaining <= 0) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> You can’t add because the remaining is ₱0.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        <script>
+    setTimeout(function() {
+        window.history.back();
+    }, 3000); // Wait 3 seconds before going back
+</script>
+        ';
+        
+        exit;
+    }
+
+    // Block if paid > remaining
+    if ($paid > $remaining) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> Cannot pay ₱' . $paid . '. Only ₱' . number_format($remaining, 2) . ' remaining.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        
+        <script>
+            setTimeout(function() {
+                window.history.back();
+            }, 3000);
+        </script>
+        ';
+        exit;
+    }
+
+    // Record deduction
+    $record_deduction = "INSERT INTO total_money (capital_money, deduction_of_capital_money, admin_id, collector_id)
+                         VALUES (0, '$paid', '$admin_id', '$collector_id')";
+    mysqli_query($conn, $record_deduction);
+
+    // Insert or update pickup request
     $check = mysqli_query($conn, "SELECT id FROM pickup_requests WHERE id = $request_id");
 
     if (mysqli_num_rows($check) > 0) {
@@ -113,9 +274,9 @@ if (isset($_POST['add_paid_kl'])) {
     }
 
     if (mysqli_query($conn, $update_sql)) {
-        $_SESSION['message'] = 'Paid, KL, and Junk Type updated successfully.';
+        $_SESSION['message'] = "Payment recorded successfully.";
     } else {
-        $_SESSION['message'] = 'Failed to update pickup request: ' . mysqli_error($conn);
+        $_SESSION['message'] = "Error: " . mysqli_error($conn);
     }
 
     header("Location: " . $_SERVER['PHP_SELF']);
@@ -262,8 +423,8 @@ $requests = mysqli_query($conn, $query);
             <button type="submit" class="btn btn-primary">Apply</button>
         </div>
     </form>
-
-    <table class="table table-bordered">
+    <div class="table-responsive">
+    <table class="table table-striped table-bordered">
         <thead class="thead-dark">
             <tr>
                 <th>Customer Name</th>
@@ -422,7 +583,7 @@ $requests = mysqli_query($conn, $query);
             <?php endif; ?>
         </tbody>
     </table>
-
+            </div>
     <nav>
         <ul class="pagination">
             <?php if ($page > 1): ?>

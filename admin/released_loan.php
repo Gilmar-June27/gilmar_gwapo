@@ -22,59 +22,218 @@ function isReferenceNumberUnique($ref_no, $conn) {
     return $row['count'] == 0; // If count is 0, the reference number is unique
 }
 
-if (isset($_POST['apply_loan'])) {
-  // Auto-generate a unique reference number
-  do {
-      $ref_no = generateReferenceNumber();
-  } while (!isReferenceNumberUnique($ref_no, $conn));
 
-  // Get input values from the form
+if (isset($_POST['apply_loan'])) {
+  $ref_no = generateReferenceNumber($conn);
   $ltype_id = $_POST['ltype_id'];
   $borrower_id = $_POST['borrower_id'];
   $purpose = $_POST['purpose'];
-  $amount = $_POST['amount'];
+  $amount = floatval($_POST['amount']);
   $lplan_id = $_POST['lplan_id'];
-  $status = 0; // default request status
+  $status = 0;
   $date_created = date('Y-m-d H:i:s');
-  $date_released = $date_created; // same as created initially
-  $admin_id = $_SESSION['admin_id'];
+  $date_released = $date_created;
 
-  // 🔍 Fetch collector_id from borrower table
-  $collector_query = "SELECT collector_id FROM borrower WHERE borrower_id = '$borrower_id'";
-  $collector_result = mysqli_query($conn, $collector_query);
-  $collector_id = 0;
+  // ✅ Get collector_id from borrower
+  $borrower_query = "SELECT collector_id FROM borrower WHERE borrower_id = '$borrower_id'";
+  $borrower_result = mysqli_query($conn, $borrower_query);
 
-  if ($collector_result && mysqli_num_rows($collector_result) > 0) {
-      $collector_row = mysqli_fetch_assoc($collector_result);
-      $collector_id = $collector_row['collector_id'];
+  if ($borrower_result && mysqli_num_rows($borrower_result) > 0) {
+      $borrower_row = mysqli_fetch_assoc($borrower_result);
+      $collector_id = $borrower_row['collector_id'];
+
+      // ✅ Get capital based on admin
+      $money_query = "SELECT capital_money FROM total_money WHERE admin_id = '$admin_id' ORDER BY id DESC LIMIT 1";
+      $money_result = mysqli_query($conn, $money_query);
+
+      $capital_money = 0;
+      if ($money_result && mysqli_num_rows($money_result) > 0) {
+          $money_row = mysqli_fetch_assoc($money_result);
+          $capital_money = floatval($money_row['capital_money']);
+      }
+
+      // ✅ Get total previous deductions
+      $deduct_query = "SELECT SUM(deduction_of_capital_money) AS total_deduction FROM total_money WHERE admin_id = '$admin_id'";
+      $deduct_result = mysqli_query($conn, $deduct_query);
+      $deduct_row = mysqli_fetch_assoc($deduct_result);
+      $total_deduction = floatval($deduct_row['total_deduction'] ?? 0);
+
+      $remaining = $capital_money - $total_deduction;
+      if ($remaining < 0) $remaining = 0;
+
+      // ✅ BLOCK IF NO FUNDS
+      if ($remaining <= 0) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> You can’t add because the remaining is ₱0.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        <script>
+    setTimeout(function() {
+        window.history.back();
+    }, 3000); // Wait 3 seconds before going back
+</script>
+        ';
+          exit;
+      }
+
+      // ✅ BLOCK IF REQUESTED AMOUNT EXCEEDS REMAINING
+      if ($amount > $remaining) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> Cannot pay ₱' . $amount . '. Only ₱' . number_format($remaining, 2) . ' remaining.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        
+        <script>
+            setTimeout(function() {
+                window.history.back();
+            }, 3000);
+        </script>
+        ';
+          exit;
+      }
+
+      // ✅ Record deduction
+      $new_deductions = $total_deduction + $amount;
+      $new_total_money = $capital_money - $new_deductions;
+
+      $insert_money_query = "INSERT INTO total_money (capital_money, collector_id, deduction_of_capital_money, total_money, admin_id)
+                             VALUES ('$capital_money', '$collector_id', '$new_deductions', '$new_total_money', '$admin_id')";
+
+      if (!mysqli_query($conn, $insert_money_query)) {
+          echo "<script>alert('Error inserting capital deduction.'); window.history.back();</script>";
+          exit;
+      }
+
+      // ✅ Insert loan
+      $insert_query = "INSERT INTO loan (ref_no, ltype_id, borrower_id, purpose, amount, lplan_id, status, date_released, date_created, collector_id, admin_id) 
+                       VALUES ('$ref_no', '$ltype_id', '$borrower_id', '$purpose', '$amount', '$lplan_id', '$status', '$date_released', '$date_created', '$collector_id', '$admin_id')";
+
+      if (mysqli_query($conn, $insert_query)) {
+          $_SESSION['message'] = 'Loan applied and capital record saved!';
+          echo "<script>window.location.href='';</script>";
+      } else {
+          echo "<script>alert('Error inserting loan.'); window.history.back();</script>";
+      }
+  } else {
+      echo "<script>alert('Borrower not found.'); window.history.back();</script>";
   }
-
-  // 💾 Insert loan into database
-  $query = "INSERT INTO loan (ref_no, ltype_id, borrower_id, purpose, amount, lplan_id, status, date_released, date_created, collector_id, admin_id) 
-                   VALUES ('$ref_no', '$ltype_id', '$borrower_id', '$purpose', '$amount', '$lplan_id', '$status', '$date_released', '$date_created', '$collector_id', '$admin_id')";
-
-if (mysqli_query($conn, $query)) {
-  echo "<script>alert('Loan successfully added!'); window.location.href='';</script>";
-} else {
-  echo "Error: " . mysqli_error($conn);
-}
 }
 
 
 
 
-// if (isset($_POST['confirm_loan'])) {
-//     $loan_id = $_POST['loan_id'];
 
-//     // Update the loan status to 1 (confirmed)
-//     $sql = "UPDATE loan SET status = 1 WHERE loan_id = $loan_id";
-
-//     if (mysqli_query($conn, $sql)) {
-//         echo "<script>alert('Loan confirmed successfully!');</script>";
-//     } else {
-//         echo "Error updating loan: " . mysqli_error($conn);
-//     }
-// }
+if (isset($_POST['delete'])) {
+  $delete_id = $_POST['delete_id'];
+  mysqli_query($conn, "DELETE FROM loan WHERE loan_id = '$delete_id' ");
+  $_SESSION['message'] = 'loan deleted.';
+  header("Location: " . $_SERVER['PHP_SELF']);
+  exit;
+}
 
 
 if (isset($_POST['confirm_loan'])) {
@@ -87,7 +246,7 @@ if (isset($_POST['confirm_loan'])) {
   $collector_id = $loan['collector_id'];
 
   $msg = "Your loan has been confirmed.";
-  mysqli_query($conn, "INSERT INTO admin_notification(loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
+  mysqli_query($conn, "INSERT INTO admin_notification (loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
   echo "<script>alert('Loan successfully added!'); window.location.href='';</script>";
 
 }
@@ -102,7 +261,7 @@ if (isset($_POST['release_loan'])) {
   
   // Loan #$loan_id
   $msg = "Your loan has been released.";
-  mysqli_query($conn, "INSERT INTO admin_notification(loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
+  mysqli_query($conn, "INSERT INTO admin_notification (loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
   echo "<script>alert('Loan successfully added!'); window.location.href='';</script>";
 
 }
@@ -116,7 +275,7 @@ if (isset($_POST['complete_loan'])) {
   $collector_id = $loan['collector_id'];
 
   $msg = "Your loan has been marked as completed.";
-  mysqli_query($conn, "INSERT INTO admin_notification(loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
+  mysqli_query($conn, "INSERT INTO admin_notification (loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
   echo "<script>alert('Loan successfully added!'); window.location.href='';</script>";
 
 }
@@ -130,7 +289,7 @@ if (isset($_POST['deny_loan'])) {
   $collector_id = $loan['collector_id'];
 
   $msg = "Your loan has been denied.";
-  mysqli_query($conn, "INSERT INTO admin_notification(loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
+  mysqli_query($conn, "INSERT INTO admin_notification (loan_id, admin_id, collector_id, message) VALUES ($loan_id, $admin_id, $collector_id, '$msg')");
   echo "<script>alert('Loan successfully added!'); window.location.href='';</script>";
 
 }
@@ -160,13 +319,214 @@ $query = "SELECT * FROM loan WHERE ref_no LIKE '%$search%' OR borrower_id LIKE '
 $loan_result = mysqli_query($conn, $query);
 
 
-if (isset($_POST['delete'])) {
-  $delete_id = $_POST['delete_id'];
-  mysqli_query($conn, "DELETE FROM loan WHERE loan_id = '$delete_id' ");
-  $_SESSION['message'] = 'loan deleted.';
-  header("Location: " . $_SERVER['PHP_SELF']);
-  exit;
+if (isset($_POST['update_loan'])) {
+  $loan_id = $_POST['loan_id'];
+  $ref_no = mysqli_real_escape_string($conn, $_POST['ref_no']);
+  $borrower_id = $_POST['borrower_id'];
+  $purpose = mysqli_real_escape_string($conn, $_POST['purpose']);
+  $amount = floatval($_POST['amount']);
+  $lplan_id = $_POST['lplan_id'];
+  $status = $_POST['status'] ?? 0;
+  $date_created = $_POST['date_created'];
+  $date_released = $_POST['date_released'];
+
+  // ✅ get loan type id from the existing loan (if not being changed)
+  $loan_query = "SELECT ltype_id FROM loan WHERE loan_id = '$loan_id'";
+  $loan_result = mysqli_query($conn, $loan_query);
+  $loan_data = mysqli_fetch_assoc($loan_result);
+  $ltype_id = $loan_data['ltype_id'];
+
+  // ✅ get collector from borrower
+  $borrower_query = "SELECT collector_id FROM borrower WHERE borrower_id = '$borrower_id'";
+  $borrower_result = mysqli_query($conn, $borrower_query);
+
+  if ($borrower_result && mysqli_num_rows($borrower_result) > 0) {
+      $borrower_row = mysqli_fetch_assoc($borrower_result);
+      $collector_id = $borrower_row['collector_id'];
+
+      // ✅ Get admin ID from session
+      $admin_id = $_SESSION['admin_id'];
+
+      // ✅ Get current capital
+      $capital_query = "SELECT capital_money FROM total_money WHERE admin_id = '$admin_id' ORDER BY created_at DESC LIMIT 1";
+      $capital_result = mysqli_query($conn, $capital_query);
+      $capital = 0;
+      if ($capital_result && mysqli_num_rows($capital_result) > 0) {
+          $capital_row = mysqli_fetch_assoc($capital_result);
+          $capital = floatval($capital_row['capital_money']);
+      }
+
+      // ✅ Get total deduction
+      $deduct_query = "SELECT SUM(deduction_of_capital_money) AS total_deduction FROM total_money WHERE admin_id = '$admin_id'";
+      $deduct_result = mysqli_query($conn, $deduct_query);
+      $deduct_row = mysqli_fetch_assoc($deduct_result);
+      $total_deduction = floatval($deduct_row['total_deduction'] ?? 0);
+
+      // ✅ Calculate remaining money
+      $remaining = $capital - $total_deduction;
+      if ($remaining < 0) $remaining = 0;
+
+      // ✅ Check if loan amount is allowed
+      if ($remaining <= 0) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> You can’t add because the remaining is ₱0.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        <script>
+    setTimeout(function() {
+        window.history.back();
+    }, 3000); // Wait 3 seconds before going back
+</script>
+        ';
+          exit;
+      }
+
+      if ($amount > $remaining) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> Cannot pay ₱' . $amount . '. Only ₱' . number_format($remaining, 2) . ' remaining.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        
+        <script>
+            setTimeout(function() {
+                window.history.back();
+            }, 3000);
+        </script>
+        ';
+          exit;
+      }
+
+      // ✅ Proceed to update
+      $update_query = "UPDATE loan SET 
+          ref_no = '$ref_no',
+          ltype_id = '$ltype_id',
+          borrower_id = '$borrower_id',
+          purpose = '$purpose',
+          amount = '$amount',
+          lplan_id = '$lplan_id',
+          status = '$status',
+          date_created = '$date_created',
+          date_released = '$date_released',
+          collector_id = '$collector_id'
+          WHERE loan_id = '$loan_id'";
+
+      if (mysqli_query($conn, $update_query)) {
+          $_SESSION['message'] = 'Loan updated successfully!';
+          echo "<script>window.location.href='';</script>";
+      } else {
+          echo "<script>alert('Error updating loan.'); window.location.href='';</script>";
+      }
+  } else {
+      echo "<script>alert('Borrower not found.'); window.location.href='';</script>";
+  }
 }
+
+
+
 ?>
 
 
@@ -324,7 +684,7 @@ select.form-control {
 
 
 <h4 class="mt-4">Loan Applications</h4>
-
+<div class="table-responsive">
 <table class="table table-striped table-bordered">
   <thead>
   <tr>
@@ -461,7 +821,7 @@ LIMIT $limit OFFSET $offset";
     ?>
   </tbody>
 </table>
-
+</div>
 
 
 
