@@ -84,12 +84,13 @@ $unread_count = $unread_data['unread_count'];
             </li>
             
             <li class="nav-item dropdown">
-            <a class="nav-link count-indicator dropdown-toggle" id="notificationDropdown" data-bs-toggle="dropdown" onclick="toggleNotifications(); markNotificationsAsRead();">
-              <i class="mdi mdi-bell-outline"></i>
-              <?php if ($unread_count > 0): ?>
-                <span class="count-symbol bg-danger notif-count" id="notifCount"><?php echo $unread_count; ?></span>
-              <?php endif; ?>
-            </a>
+            <a class="nav-link count-indicator dropdown-toggle" id="notificationDropdown" data-bs-toggle="dropdown" onclick="markNotificationsAsRead();">
+  <i class="mdi mdi-bell-outline"></i>
+  <?php if ($unread_count > 0): ?>
+    <span class="count-symbol bg-danger notif-count" id="notifCount"><?php echo $unread_count; ?></span>
+  <?php endif; ?>
+</a>
+
 
             <div class="dropdown-menu dropdown-menu-end navbar-dropdown preview-list p-3" aria-labelledby="notificationDropdown" style="width: 320px; max-height: 400px; overflow-y: auto;">
               <h6 class="dropdown-header">Notifications</h6>
@@ -130,10 +131,15 @@ function markNotificationsAsRead() {
             if (data.success) {
                 const countElem = document.getElementById('notifCount');
                 if (countElem) {
-                    countElem.style.display = 'none';
+                    countElem.innerText = ''; // Clear the number
+                    countElem.style.display = 'none'; // Hide the bubble
                 }
+            } else {
+                console.error('Failed to mark notifications as read:', data.message);
             }
         })
-        .catch(err => console.error('Error marking notifications:', err));
+        .catch(err => {
+            console.error('Fetch error:', err);
+        });
 }
 </script>
