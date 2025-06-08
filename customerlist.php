@@ -60,11 +60,160 @@ if (isset($_POST['decline_request'])) {
 }
 
 if (isset($_POST['complete_request'])) {
-
-
   $request_id = (int) $_POST['request_id'];
   $paid = (float) mysqli_real_escape_string($conn, $_POST['paid']);
   $kl = mysqli_real_escape_string($conn, $_POST['kl']);
+
+  // Get collector ID
+  $pickup_request = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_id, collector_id FROM pickup_requests WHERE id = $request_id"));
+  $collector_id = $pickup_request['collector_id'];
+
+  // Fetch latest capital and deduction
+  $money_query = "SELECT capital_money, deduction_of_capital_money FROM total_money WHERE collector_id = '$collector_id' ORDER BY created_at DESC LIMIT 1";
+  $money_result = mysqli_query($conn, $money_query);
+  $money_data = mysqli_fetch_assoc($money_result);
+
+  if ($money_data) {
+      $capital = (float) $money_data['capital_money'];
+      $deduction = (float) $money_data['deduction_of_capital_money'];
+      $remaining = $capital - $deduction;
+
+      if ($remaining <= 0) {
+        echo '
+        <style>
+            .custom-alert {
+                position: fixed;
+                top: -100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #ff4e4e, #ff7373);
+                color: #fff;
+                padding: 20px 30px;
+                border: 2px solid #c40000;
+                border-radius: 10px;
+                z-index: 9999;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 17px;
+                font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                animation: slideDown 0.6s ease-out forwards;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        
+            .custom-alert i {
+                font-size: 20px;
+            }
+        
+            @keyframes slideDown {
+                0% {
+                    top: -100px;
+                    opacity: 0;
+                }
+                100% {
+                    top: 30px;
+                    opacity: 1;
+                }
+            }
+        </style>
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        
+        <div class="custom-alert">
+            <i class="fas fa-exclamation-triangle"></i> You can’t add because the remaining is ₱0.
+        </div>
+        
+        <script>
+            setTimeout(function() {
+                const alertBox = document.querySelector(".custom-alert");
+                if (alertBox) {
+                    alertBox.style.transition = "opacity 0.5s ease";
+                    alertBox.style.opacity = "0";
+                    setTimeout(() => alertBox.remove(), 500);
+                }
+            }, 3000);
+        </script>
+        <script>
+    setTimeout(function() {
+        window.history.back();
+    }, 3000); // Wait 3 seconds before going back
+</script>
+        ';
+        
+          exit;
+      }
+
+      // Check if paid amount exceeds remaining
+      if ($paid > $remaining) {
+        echo '
+<style>
+    .custom-alert {
+        position: fixed;
+        top: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #ff4e4e, #ff7373);
+        color: #fff;
+        padding: 20px 30px;
+        border: 2px solid #c40000;
+        border-radius: 10px;
+        z-index: 9999;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 17px;
+        font-weight: 500;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        animation: slideDown 0.6s ease-out forwards;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .custom-alert i {
+        font-size: 20px;
+    }
+
+    @keyframes slideDown {
+        0% {
+            top: -100px;
+            opacity: 0;
+        }
+        100% {
+            top: 30px;
+            opacity: 1;
+        }
+    }
+</style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<div class="custom-alert">
+    <i class="fas fa-exclamation-triangle"></i> Cannot pay ₱' . $paid . '. Only ₱' . number_format($remaining, 2) . ' remaining.
+</div>
+
+<script>
+    setTimeout(function() {
+        const alertBox = document.querySelector(".custom-alert");
+        if (alertBox) {
+            alertBox.style.transition = "opacity 0.5s ease";
+            alertBox.style.opacity = "0";
+            setTimeout(() => alertBox.remove(), 500);
+        }
+    }, 3000);
+</script>
+
+<script>
+    setTimeout(function() {
+        window.history.back();
+    }, 3000);
+</script>
+';
+ 
+        exit;
+      }
+  }
 
   // Step 1: Update pickup_requests
   $update_sql = "UPDATE pickup_requests 
@@ -75,30 +224,14 @@ if (isset($_POST['complete_request'])) {
                  WHERE id = $request_id";
   mysqli_query($conn, $update_sql);
 
-  // Step 2: Get customer and collector ID
-  $pickup_request = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_id, collector_id FROM pickup_requests WHERE id = $request_id"));
-  $customer_id = $pickup_request['customer_id'];
-  $collector_id = $pickup_request['collector_id'];
+  // Step 2: Update deduction in total_money
+  $update_deduction_sql = "UPDATE total_money 
+                           SET deduction_of_capital_money = deduction_of_capital_money + $paid 
+                           WHERE collector_id = '$collector_id'";
+  mysqli_query($conn, $update_deduction_sql);
 
-  // Step 3: Notify the customer
-  $msg = "Your pickup request has been marked as completed.";
-  mysqli_query($conn, "INSERT INTO collector_notification (customer_id, message) VALUES ($customer_id, '$msg')");
-
-  // Step 4: Get the latest capital_money for this collector
-  $result = mysqli_query($conn, "SELECT capital_money FROM total_money WHERE collector_id = $collector_id ORDER BY id DESC LIMIT 1");
-  $row = mysqli_fetch_assoc($result);
-  $capital_money = $row ? (float)$row['capital_money'] : 0;
-
-  // Step 5: Calculate deduction (based on `paid`, not `kl`)
-  $deduction = $paid;
-  $total_money = $capital_money - $deduction;
-
-  // Step 6: Save the result to total_money table
-  $insert_sql = "INSERT INTO total_money (capital_money, collector_id, deduction_of_capital_money, total_money)
-                 VALUES ('$capital_money', $collector_id, '$deduction', '$total_money')";
-  mysqli_query($conn, $insert_sql);
-
-  // Step 7: Redirect with session message
+  // Redirect or show success
+   // Step 7: Redirect with session message
   $_SESSION['message'] = 'Pickup request completed and deduction saved!';
   header("Location: " . $_SERVER['PHP_SELF']);
   exit;
@@ -268,7 +401,7 @@ if (isset($_POST['add_documentation'])) {
       
         
     </form>
-
+    <div class="table-responsive">
     <table class="table table-bordered">
         <thead class="thead-dark">
             <tr>
@@ -397,7 +530,7 @@ data-customer-id="<?= $row['customer_id'] ?>">
         <?php endif; ?>
         </tbody>
     </table>
-
+</div>
 <!-- Modal for Adding Documentation -->
 <div class="modal fade" id="completeModal" tabindex="-1" aria-labelledby="completeModalLabel" aria-hidden="true">
   <div class="modal-dialog">
