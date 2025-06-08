@@ -50,6 +50,45 @@ $unread_query = mysqli_query($conn, "
 $unread_data = mysqli_fetch_assoc($unread_query);
 $unread_count = $unread_data['unread_count'] ?? 0;
 ?>
+<style>
+    .count-symbol {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background-color: #dc3545; /* Bootstrap red */
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 3px 6px;
+    border-radius: 20px;
+    box-shadow: 0 0 0 2px #fff;
+    transition: all 0.2s ease-in-out;
+    z-index: 999;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.az-header-notification {
+    position: relative;
+}
+
+.az-header-notification .typcn-bell {
+    font-size: 24px;
+    color: #333;
+}
+
+</style>
 
 <!-- Header HTML Starts -->
 <div class="az-header">
@@ -90,7 +129,16 @@ $unread_count = $unread_data['unread_count'] ?? 0;
         <div class="az-header-right">
             <!-- Notifications Dropdown -->
             <div class="dropdown az-header-notification">
-                <a href="#" class="new"><i class="typcn typcn-bell"></i></a>
+                <!-- <a href="#" class="new"><i class="typcn typcn-bell"></i></a> -->
+                <a href="#" id="notificationBell" class="new position-relative" title="You have <?php echo $unread_count; ?> unread notification(s)">
+    <i class="typcn typcn-bell"></i>
+    <?php if ($unread_count > 0): ?>
+        <span class="count-symbol bg-danger" id="notif-count"><?php echo $unread_count; ?></span>
+    <?php endif; ?>
+</a>
+
+
+
                 <div class="dropdown-menu">
                     <div class="az-dropdown-header mg-b-20 d-sm-none">
                         <a href="#" class="az-header-arrow"><i class="icon ion-md-arrow-back"></i></a>
@@ -151,3 +199,29 @@ $unread_count = $unread_data['unread_count'] ?? 0;
     </div>
 </div>
 <!-- Header HTML Ends -->
+
+<script>
+document.getElementById('notificationBell').addEventListener('click', function(e) {
+    e.preventDefault(); // Prevents jumping to top
+
+    // 1. Set count to 0 visually
+    const countSpan = document.getElementById('notif-count');
+    if (countSpan) {
+        countSpan.textContent = '0';
+        countSpan.classList.remove('bg-danger');
+        countSpan.style.backgroundColor = '#aaa'; // Optional style for "read"
+    }
+
+    // 2. Send request to backend to mark as read
+    fetch('mark_notifications_read.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Notifications marked as read.');
+            } else {
+                console.error('Failed to update notifications.');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+});
+</script>
